@@ -1,8 +1,11 @@
 #!/bin/sh
-
+echo "\n"
 echo "Welcome!  I can help with you creating a procedure for partitioning tables by date range in mysql db";
-echo "Please enter the details in the following format. You can enter multiple lines to create multiple procedures ";
-echo "schema name|table name|partition range in months|retention period in months";
+echo "\n"
+echo "Please enter the details in the following format. You can enter multiple lines to create multiple procedures. ";
+echo "\nEnter column-wise values for the header below." 
+echo "\"*** schema_name|table_name|partition_range(in months)|retention_period(in months) ***\"";
+echo "\nAdd a new line of table info and press <Enter> to add another line. Press enter twice to generate files";
 
 generate_procedure() {
 
