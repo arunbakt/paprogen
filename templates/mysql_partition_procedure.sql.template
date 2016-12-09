@@ -1,0 +1,76 @@
+DELIMITER $$
+DROP PROCEDURE IF EXISTS `<schema_name>`.`UpdatePartitions_<table_name>` $$
+
+CREATE PROCEDURE `<schema_name>`.`UpdatePartitions_<table_name>`()
+BEGIN
+  DECLARE maxpart_date date;
+  DECLARE older_partitions_count int;
+  DECLARE oldest_partition varchar(40);
+  DECLARE droppart_sql date;
+  DECLARE newpart_date date;
+  DECLARE newpart_sql varchar(500);
+  DECLARE archive_partitions INT DEFAULT FALSE;
+
+  SELECT COUNT(*)
+    INTO older_partitions_count
+    FROM INFORMATION_SCHEMA.PARTITIONS
+    WHERE TABLE_NAME='<table_name>' AND TABLE_SCHEMA='<schema_name>'
+    AND PARTITION_DESCRIPTION < UNIX_TIMESTAMP(CURDATE());
+
+  -- first, deal with pruning old partitions
+  SET @allowed_older_partitions_count := <retention_period>/<partition_range>;
+
+  IF archive_partitions THEN
+
+    WHILE (older_partitions_count > @allowed_older_partitions_count)
+    DO
+        SELECT PARTITION_NAME INTO oldest_partition FROM INFORMATION_SCHEMA.PARTITIONS
+         WHERE PARTITION_DESCRIPTION = (SELECT MIN(PARTITION_DESCRIPTION) FROM
+         INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME='<table_name>' AND TABLE_SCHEMA='<schema_name>')
+         AND TABLE_NAME='<table_name>' AND TABLE_SCHEMA='<schema_name>';
+
+
+        SET @sql := CONCAT('ALTER TABLE <table_name> DROP PARTITION ? ', oldest_partition, ';');
+        PREPARE stmt FROM @sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+
+        SELECT COUNT(*)
+        INTO older_partitions_count
+        FROM INFORMATION_SCHEMA.PARTITIONS
+        WHERE TABLE_NAME='<table_name>' AND TABLE_SCHEMA='<schema_name>';
+
+    END WHILE;
+
+  END IF;
+
+  SELECT DATE(FROM_UNIXTIME(MAX(PARTITION_DESCRIPTION)))
+    INTO maxpart_date
+    FROM INFORMATION_SCHEMA.PARTITIONS
+    WHERE TABLE_NAME='<table_name>' AND TABLE_SCHEMA='<schema_name>';
+
+  WHILE (maxpart_date < CURDATE() + INTERVAL (6*<partition_range>) MONTH)
+  DO
+    SET newpart_date := maxpart_date + INTERVAL <partition_range> MONTH;
+    SET @sql := CONCAT('ALTER TABLE <table_name> ADD PARTITION (PARTITION p'
+                         , UNIX_TIMESTAMP(newpart_date)
+                         , ' VALUES LESS THAN ('
+                         , UNIX_TIMESTAMP(newpart_date)
+                         , '));');
+
+    PREPARE stmt FROM @sql;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
+
+    SELECT DATE(FROM_UNIXTIME(MAX(PARTITION_DESCRIPTION)))
+      INTO maxpart_date
+      FROM INFORMATION_SCHEMA.PARTITIONS
+      WHERE TABLE_NAME='<table_name>' AND TABLE_SCHEMA='<schema_name>';
+
+  END WHILE;
+
+END $$
+
+DELIMITER ;
+
+
