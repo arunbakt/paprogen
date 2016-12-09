@@ -4,15 +4,12 @@ A simple bash script that generates partition procedures for mysql tables.
 
 ## Usage
 
-`cd paprogen
-./partition_procedure_gen.sh
-
-myschema | mytable | 6 | 36 
-
-press <Enter>
-	
-add another line of table information
-
+```cd paprogen<br>
+./partition_procedure_gen.sh<br>
+myschema | mytable | 6 | 36 <br>
+press <Enter><br>
+add another line of table information<br>
+<br>
 press <Enter> twice to generate files`
 	
 	
